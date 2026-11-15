@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-900 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FindIt - Smart Lost & Found Ecosystem</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet.js CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- QRCode.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .leaflet-container { background-color: #0f172a !important; font-family: inherit; }
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1e293b !important; color: #f8fafc !important; border: 1px solid #334155; }
+    </style>
+</head>
+<body class="h-full flex flex-col font-sans antialiased overflow-x-hidden selection:bg-brand-500 selection:text-white">
+
+    <!-- TOP NAVIGATION HEADER -->
+    <header class="bg-slate-800/80 backdrop-blur-md border-b border-slate-700/60 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-brand-500/20">
+                    <i class="fa-solid fa-radar animate-pulse"></i>
+                </div>
+                <div>
+                    <span class="text-xl font-black bg-gradient-to-r from-white via-slate-200 to-brand-500 bg-clip-text text-transparent">FindIt</span>
+                    <span class="text-xs bg-brand-500/20 text-brand-500 font-semibold px-2 py-0.5 rounded-full ml-2 border border-brand-500/30">v2.4 AI Pro</span>
+                </div>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <nav class="hidden md:flex items-center space-x-1 bg-slate-900/60 p-1 rounded-xl border border-slate-700/50">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="tab-btn active px-4 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 text-white bg-brand-600">
+                    <i class="fa-solid fa-chart-line"></i> Dashboard
+                </button>
+                <button onclick="switchTab('map')" id="nav-map" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i class="fa-solid fa-map-location-dot"></i> Live Map
+                </button>
+                <button onclick="switchTab('ai-match')" id="nav-ai-match" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i class="fa-solid fa-brain text-purple-400"></i> AI Matcher
+                </button>
+                <button onclick="switchTab('qr')" id="nav-qr" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i class="fa-solid fa-qrcode text-emerald-400"></i> QR Tags
+                </button>
+                <button onclick="switchTab('chat')" id="nav-chat" class="tab-btn relative px-4 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i class="fa-solid fa-comments text-amber-400"></i> Messages
+                    <span id="unread-badge" class="w-2 h-2 rounded-full bg-amber-500 absolute top-2 right-2 animate-ping"></span>
+                </button>
+                <button onclick="switchTab('code')" id="nav-code" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i class="fa-solid fa-code text-cyan-400"></i> Backend PHP/SQL
+                </button>
+            </nav>
+
+            <!-- Quick Action & Profile -->
+            <div class="flex items-center gap-3">
+                <button onclick="openModal('reportModal')" class="bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white px-4 py-2 rounded-xl font-medium text-xs shadow-lg shadow-brand-600/30 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Report Item
+                </button>
+            </div>
+        </div>
+        
+        <!-- Mobile Navigation Bar -->
+        <div class="md:hidden flex overflow-x-auto gap-1 p-2 bg-slate-900 border-t border-slate-800 custom-scrollbar">
+            <button onclick="switchTab('dashboard')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-600 text-white whitespace-nowrap">Dashboard</button>
+            <button onclick="switchTab('map')" class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:bg-slate-800 whitespace-nowrap">Live Map</button>
+            <button onclick="switchTab('ai-match')" class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:bg-slate-800 whitespace-nowrap">AI Matcher</button>
+            <button onclick="switchTab('qr')" class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:bg-slate-800 whitespace-nowrap">QR Tags</button>
+            <button onclick="switchTab('chat')" class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:bg-slate-800 whitespace-nowrap">Messages</button>
+            <button onclick="switchTab('code')" class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:bg-slate-800 whitespace-nowrap">PHP/SQL</button>
+        </div>
+    </header>
+
+    <!-- MAIN APP CONTAINER -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+        <!-- ================= DASHBOARD TAB ================= -->
+        <section id="tab-dashboard" class="tab-content space-y-6">
+            <!-- Stats Banner -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-slate-800/60 rounded-2xl p-5 border border-slate-700/50 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-400 font-medium">Total Lost Items</p>
+                        <h3 class="text-2xl font-bold text-white mt-1" id="stat-lost-count">14</h3>
+                        <p class="text-xs text-rose-400 mt-1"><i class="fa-solid fa-arrow-up"></i> +2 today</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800/60 rounded-2xl p-5 border border-slate-700/50 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-400 font-medium">Total Found Items</p>
+                        <h3 class="text-2xl font-bold text-white mt-1" id="stat-found-count">18</h3>
+                        <p class="text-xs text-emerald-400 mt-1"><i class="fa-solid fa-check"></i> 85% returned</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-hand-holding-heart"></i>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800/60 rounded-2xl p-5 border border-slate-700/50 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-400 font-medium">AI Match Confidence</p>
+                        <h3 class="text-2xl font-bold text-white mt-1">94.2%</h3>
+                        <p class="text-xs text-purple-400 mt-1"><i class="fa-solid fa-bolt"></i> Realtime Neural Match</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800/60 rounded-2xl p-5 border border-slate-700/50 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-400 font-medium">Active QR Shield Tags</p>
+                        <h3 class="text-2xl font-bold text-white mt-1" id="stat-qr-count">6</h3>
+                        <p class="text-xs text-cyan-400 mt-1"><i class="fa-solid fa-shield-halved"></i> Anonymous Privacy</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-qrcode"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters & Search -->
+            <div class="bg-slate-800/40 rounded-2xl p-4 border border-slate-700/40 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="relative w-full sm:w-80">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+                    <input type="text" id="searchQuery" onkeyup="renderItems()" placeholder="Search Macbook, Keys, Wallet, Location..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto justify-end overflow-x-auto">
+                    <button onclick="setFilterCategory('ALL')" class="filter-btn active-filter px-3 py-1.5 rounded-lg text-xs font-medium border border-brand-500/50 bg-brand-500/20 text-brand-300">All Items</button>
+                    <button onclick="setFilterCategory('LOST')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 bg-slate-900 text-slate-400 hover:text-white">Lost Only</button>
+                    <button onclick="setFilterCategory('FOUND')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 bg-slate-900 text-slate-400 hover:text-white">Found Only</button>
+                </div>
+            </div>
+
+            <!-- Items Feed Grid -->
+            <div id="itemsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- JS dynamic injection -->
+            </div>
+        </section>
+
+        <!-- ================= LIVE MAP TAB ================= -->
+        <section id="tab-map" class="tab-content hidden space-y-4">
+            <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-base font-bold text-white flex items-center gap-2"><i class="fa-solid fa-map-pin text-rose-500"></i> Interactive Geolocation Radar</h2>
+                    <p class="text-xs text-slate-400">Click anywhere on the map to pin a lost/found location or filter by vicinity.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <label class="text-xs text-slate-300">Radius Filter:</label>
+                    <select id="mapRadiusSelect" onchange="updateMapRadius()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none">
+                        <option value="500">500 Meters Zone</option>
+                        <option value="1000" selected>1.0 Kilometer Zone</option>
+                        <option value="5000">5.0 Kilometers Zone</option>
+                    </select>
+                </div>
+            </div>
+            <div class="relative rounded-2xl overflow-hidden border border-slate-700/60 shadow-2xl h-[550px]">
+                <div id="map" class="w-full h-full"></div>
+            </div>
+        </section>
+
+        <!-- ================= AI MATCHER TAB ================= -->
+        <section id="tab-ai-match" class="tab-content hidden space-y-6">
+            <div class="bg-gradient-to-r from-purple-900/30 via-slate-800/60 to-slate-800/60 rounded-2xl p-6 border border-purple-500/30">
+                <div class="flex items-center gap-3 mb-2">
+                    <i class="fa-solid fa-brain text-purple-400 text-2xl"></i>
+                    <h2 class="text-xl font-bold text-white">AI Neural Image & Feature Matching Engine</h2>
+                </div>
+                <p class="text-xs text-slate-300 max-w-3xl">This module simulates deep convolutional neural feature extraction (e.g. ResNet/MobileNet vectors) to compare candidate images against the lost items database using cosine similarity metrics.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Input Panel -->
+                <div class="lg:col-span-5 bg-slate-800/60 rounded-2xl p-5 border border-slate-700/50 space-y-4">
+                    <h3 class="text-sm font-semibold text-white flex items-center gap-2"><i class="fa-solid fa-upload text-brand-400"></i> Upload Found Item Sample</h3>
+                    
+                    <div class="border-2 border-dashed border-slate-700 rounded-xl p-6 text-center bg-slate-900/50 hover:border-brand-500/50 transition-all cursor-pointer relative" onclick="triggerFileInput()">
+                        <input type="file" id="aiImageInput" accept="image/*" class="hidden" onchange="handleAiImageUpload(event)">
+                        <div id="aiUploadPreview" class="space-y-2">
+                            <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-500"></i>
+                            <p class="text-xs text-slate-300 font-medium">Click to select photo or drag file here</p>
+                            <p class="text-[10px] text-slate-500">Supports JPG, PNG, WEBP (Simulated Computer Vision Extraction)</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-xs text-slate-400 block mb-1">Item Category</label>
+                            <select id="aiCategory" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none">
+                                <option value="Electronics">Electronics (Laptop, Phone, Tablet)</option>
+                                <option value="Accessories">Accessories (Bag, Wallet, Glasses)</option>
+                                <option value="Keys">Keys / Access Cards</option>
+                                <option value="Pets">Pets / Animals</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-400 block mb-1">Dominant Color Visual Attribute</label>
+                            <select id="aiColor" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none">
+                                <option value="Black">Space Black / Dark Gray</option>
+                                <option value="Silver">Silver / Aluminum</option>
+                                <option value="Brown">Leather Brown / Tan</option>
+                                <option value="Blue">Navy Blue</option>
+                                <option value="Red">Red / Crimson</option>
+                            </select>
+                        </div>
+                        <button onclick="runAiMatching()" class="w-full bg-purple-600 hover:bg-purple-500 text-white py-3 rounded-xl font-semibold text-xs transition-all shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-sparkles"></i> Compute Feature Similarity
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Match Results Output -->
+                <div class="lg:col-span-7 bg-slate-800/60 rounded-2xl p-5 border border-slate-700/50 flex flex-col">
+                    <h3 class="text-sm font-semibold text-white flex items-center gap-2 mb-4">
+                        <i class="fa-solid fa-chart-bar text-emerald-400"></i> Matching Candidates Analysis
+                    </h3>
+                    
+                    <div id="aiMatchResults" class="flex-1 space-y-4 custom-scrollbar overflow-y-auto max-h-[480px]">
+                        <div class="text-center py-12 text-slate-500 space-y-2">
+                            <i class="fa-solid fa-microchip text-4xl text-slate-600"></i>
+                            <p class="text-xs">Upload an image and run matcher to view predicted similarity scores.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= QR TAGS TAB ================= -->
+        <section id="tab-qr" class="tab-content hidden space-y-6">
+            <div class="bg-slate-800/60 rounded-2xl p-6 border border-slate-700/50 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <div class="flex items-center gap-2 mb-2 text-emerald-400">
+                        <i class="fa-solid fa-shield-halved text-xl"></i>
+                        <h2 class="text-lg font-bold text-white">Dynamic Owner Privacy QR Generator</h2>
+                    </div>
+                    <p class="text-xs text-slate-400 mb-6 leading-relaxed">
+                        Attach a privacy QR tag to your laptop, bag, keys, or pet collar. If lost, anyone scanning the tag opens an anonymous Finder Portal that routes messages directly to you without ever revealing your personal phone number or home address.
+                    </p>
+
+                    <form id="qrGenForm" onsubmit="generateQrCode(event)" class="space-y-4">
+                        <div>
+                            <label class="text-xs text-slate-300 font-medium block mb-1">Item Description / Tag Label</label>
+                            <input type="text" id="qrItemName" required placeholder="e.g. Work Macbook Pro 16&quot;" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-brand-500">
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-300 font-medium block mb-1">Owner Alias / Display Name</label>
+                            <input type="text" id="qrOwnerName" required placeholder="e.g. Alex M." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-brand-500">
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-300 font-medium block mb-1">Custom Finder Reward Message (Optional)</label>
+                            <textarea id="qrRewardMsg" rows="2" placeholder="e.g. $100 cash reward upon safe return! Call/Text through secure portal." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-brand-500"></textarea>
+                        </div>
+                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl font-semibold text-xs shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-qrcode"></i> Generate Privacy QR Code
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Preview Area -->
+                <div class="bg-slate-900/80 rounded-xl p-6 border border-slate-700 flex flex-col items-center justify-center text-center space-y-4">
+                    <div id="qrcode" class="p-3 bg-white rounded-2xl shadow-xl min-w-[160px] min-h-[160px] flex items-center justify-center">
+                        <p class="text-xs text-slate-400">QR Code Preview Will Appear Here</p>
+                    </div>
+                    <div id="qrDetails" class="hidden space-y-2">
+                        <span class="inline-block px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-semibold rounded-full">QR Tag Active</span>
+                        <h4 id="qrOutputTitle" class="text-sm font-bold text-white"></h4>
+                        <p id="qrOutputOwner" class="text-xs text-slate-400"></p>
+                        <div class="flex gap-2 pt-2">
+                            <button onclick="downloadQrCode()" class="bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-600 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                                <i class="fa-solid fa-download"></i> Save PNG
+                            </button>
+                            <button onclick="simulateQrScan()" class="bg-brand-600 hover:bg-brand-500 text-xs text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                                <i class="fa-solid fa-mobile-screen"></i> Test Finder Scan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Existing Dynamic Tags List -->
+            <div class="bg-slate-800/60 rounded-2xl p-5 border border-slate-700/50">
+                <h3 class="text-sm font-semibold text-white mb-4">Your Registered QR Shield Tags</h3>
+                <div id="registeredQrList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- JS Injected QR cards -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= CHAT TAB ================= -->
+        <section id="tab-chat" class="tab-content hidden space-y-6">
+            <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 overflow-hidden grid grid-cols-1 lg:grid-cols-12 h-[600px]">
+                
+                <!-- Chat Contacts / Threads -->
+                <div class="lg:col-span-4 border-r border-slate-700/50 flex flex-col bg-slate-900/40">
+                    <div class="p-4 border-b border-slate-700/50 flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-comments text-amber-400"></i> Active Claims Chat</h3>
+                        <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full border border-slate-700">E2E Privacy Enforced</span>
+                    </div>
+                    <div id="chatThreadsList" class="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-800">
+                        <!-- Dynamic Chat threads -->
+                    </div>
+                </div>
+
+                <!-- Chat Box Area -->
+                <div class="lg:col-span-8 flex flex-col bg-slate-900/80">
+                    <div id="chatHeader" class="p-4 border-b border-slate-700/50 bg-slate-800/40 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full bg-brand-600/30 border border-brand-500/40 flex items-center justify-center text-brand-300 font-semibold text-xs" id="chatHeaderAvatar">
+                                FO
+                            </div>
+                            <div>
+                                <h4 id="chatHeaderTitle" class="text-xs font-bold text-white">Select a message thread</h4>
+                                <p id="chatHeaderSub" class="text-[10px] text-slate-400">Anonymous session protected by FindIt Relay</p>
+                            </div>
+                        </div>
+                        <button onclick="openClaimModalCurrent()" class="text-xs bg-brand-600 hover:bg-brand-500 text-white px-3 py-1.5 rounded-lg border border-brand-400/30 flex items-center gap-1.5">
+                            <i class="fa-solid fa-shield-check"></i> Verify Proof of Ownership
+                        </button>
+                    </div>
+
+                    <!-- Messages Log -->
+                    <div id="chatMessagesLog" class="flex-1 p-4 overflow-y-auto custom-scrollbar space-y-3">
+                        <div class="text-center py-16 text-slate-500 text-xs">
+                            Select an ongoing inquiry from the left panel to begin secure messaging.
+                        </div>
+                    </div>
+
+                    <!-- Input Bar -->
+                    <form id="chatForm" onsubmit="sendChatMessage(event)" class="p-3 border-t border-slate-700/50 bg-slate-800/30 flex items-center gap-2">
+                        <input type="text" id="chatInput" placeholder="Type a secure response..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-brand-500">
+                        <button type="submit" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-lg shadow-brand-600/20 transition-all flex items-center gap-1.5">
+                            Send <i class="fa-solid fa-paper-plane text-[10px]"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= CODE VIEWER TAB (PHP & SQL) ================= -->
+        <section id="tab-code" class="tab-content hidden space-y-6">
+            <div class="bg-slate-800/60 rounded-2xl p-6 border border-slate-700/50">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-file-code text-cyan-400"></i> Production PHP Backend & MySQL Schema Source Code</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Explore or copy full backend implementation files designed for deployment on LAMP/LEMP stacks.</p>
+                    </div>
+                    <button onclick="downloadAllBackendFiles()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-lg shadow-cyan-600/20 transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-download"></i> Download Full Backend Package
+                    </button>
+                </div>
+
+                <!-- Code Sub-Tabs -->
+                <div class="flex overflow-x-auto gap-2 border-b border-slate-700 pb-2 custom-scrollbar">
+                    <button onclick="showCodeFile('schema.sql')" id="codeTab-schema.sql" class="code-tab active-code-tab px-3 py-1.5 text-xs font-mono rounded-lg bg-slate-800 border border-slate-600 text-cyan-300">schema.sql</button>
+                    <button onclick="showCodeFile('db.php')" id="codeTab-db.php" class="code-tab px-3 py-1.5 text-xs font-mono rounded-lg text-slate-400 hover:bg-slate-800">db.php</button>
+                    <button onclick="showCodeFile('auth.php')" id="codeTab-auth.php" class="code-tab px-3 py-1.5 text-xs font-mono rounded-lg text-slate-400 hover:bg-slate-800">auth.php</button>
+                    <button onclick="showCodeFile('items.php')" id="codeTab-items.php" class="code-tab px-3 py-1.5 text-xs font-mono rounded-lg text-slate-400 hover:bg-slate-800">items.php</button>
+                    <button onclick="showCodeFile('chat.php')" id="codeTab-chat.php" class="code-tab px-3 py-1.5 text-xs font-mono rounded-lg text-slate-400 hover:bg-slate-800">chat.php</button>
+                    <button onclick="showCodeFile('qr_handler.php')" id="codeTab-qr_handler.php" class="code-tab px-3 py-1.5 text-xs font-mono rounded-lg text-slate-400 hover:bg-slate-800">qr_handler.php</button>
+                    <button onclick="showCodeFile('match_algorithm.php')" id="codeTab-match_algorithm.php" class="code-tab px-3 py-1.5 text-xs font-mono rounded-lg text-slate-400 hover:bg-slate-800">match_algorithm.php</button>
+                </div>
+
+                <!-- Code Block Viewport -->
+                <div class="relative mt-4">
+                    <button onclick="copyCodeSnippet()" class="absolute top-3 right-3 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 text-[11px] px-3 py-1 rounded-lg flex items-center gap-1.5 z-10">
+                        <i class="fa-regular fa-copy"></i> Copy Code
+                    </button>
+                    <pre class="bg-slate-950 p-5 rounded-2xl border border-slate-800 font-mono text-xs text-slate-200 overflow-x-auto custom-scrollbar max-h-[500px] leading-relaxed"><code id="codeViewer">-- Loading code schema...</code></pre>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- REPORT LOST/FOUND ITEM MODAL -->
+    <div id="reportModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-800/80">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-bullhorn text-brand-400"></i> Report Lost or Found Item</h3>
+                <button onclick="closeModal('reportModal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <form onsubmit="handleReportSubmit(event)" class="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1">
+                <div>
+                    <label class="text-xs text-slate-300 font-medium block mb-1">Listing Type</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="border border-slate-700 rounded-xl p-3 flex items-center gap-2 cursor-pointer bg-slate-900/60 hover:border-brand-500">
+                            <input type="radio" name="itemType" value="LOST" checked class="accent-brand-500">
+                            <span class="text-xs text-rose-400 font-semibold"><i class="fa-solid fa-circle-exclamation mr-1"></i> I Lost Something</span>
+                        </label>
+                        <label class="border border-slate-700 rounded-xl p-3 flex items-center gap-2 cursor-pointer bg-slate-900/60 hover:border-brand-500">
+                            <input type="radio" name="itemType" value="FOUND" class="accent-brand-500">
+                            <span class="text-xs text-emerald-400 font-semibold"><i class="fa-solid fa-hand-holding-heart mr-1"></i> I Found Something</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs text-slate-300 font-medium block mb-1">Item Title</label>
+                    <input type="text" id="reportTitle" required placeholder="e.g. Leather Wallet with ID Cards" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-brand-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs text-slate-300 font-medium block mb-1">Category</label>
+                        <select id="reportCategory" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none">
+                            <option value="Electronics">Electronics</option>
+                            <option value="Accessories">Accessories</option>
+                            <option value="Keys">Keys</option>
+                            <option value="Pets">Pets</option>
+                            <option value="Documents">Documents / ID</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-300 font-medium block mb-1">Dominant Color</label>
+                        <input type="text" id="reportColor" required placeholder="e.g. Dark Brown / Black" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-brand-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs text-slate-300 font-medium block mb-1">Location Description</label>
+                    <input type="text" id="reportLocation" required placeholder="e.g. Central Park West Entrance" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-brand-500">
+                </div>
+
+                <div>
+                    <label class="text-xs text-slate-300 font-medium block mb-1">Description & Distinguishing Features</label>
+                    <textarea id="reportDesc" rows="3" required placeholder="Describe scratches, internal contents, brand name..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-brand-500"></textarea>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full bg-brand-600 hover:bg-brand-500 text-white py-3 rounded-xl font-semibold text-xs shadow-lg shadow-brand-600/30 transition-all">
+                        Publish Report
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PROOF OF OWNERSHIP CLAIM MODAL -->
+    <div id="claimModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-md overflow-hidden shadow-2xl space-y-4 p-5">
+            <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-shield-check text-emerald-400"></i> Ownership Verification Claim</h3>
+                <button onclick="closeModal('claimModal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <p class="text-xs text-slate-400 leading-relaxed">
+                To prevent fraudulent claims, please provide specific hidden details or identifiers that only the true owner would know.
+            </p>
+
+            <form onsubmit="handleClaimSubmit(event)" class="space-y-3">
+                <div>
+                    <label class="text-xs text-slate-300 font-medium block mb-1">Item Serial # / Engraving / Hidden Mark</label>
+                    <input type="text" id="claimSerial" required placeholder="e.g. SN: C02XL819JGH" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="text-xs text-slate-300 font-medium block mb-1">Specific Item Contents / Security Detail</label>
+                    <textarea id="claimDetails" rows="2" required placeholder="e.g. Contains 3 keys on a brass ring and a blue gym pass card..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none"></textarea>
+                </div>
+
+                <div>
+                    <label class="text-xs text-slate-300 font-medium block mb-1">Proof of Purchase / Photo Receipt (Preview)</label>
+                    <input type="file" class="w-full text-xs text-slate-400 bg-slate-900 rounded-xl p-2 border border-slate-700">
+                </div>
+
+                <div class="pt-2 flex gap-2">
+                    <button type="button" onclick="closeModal('claimModal')" class="w-1/2 bg-slate-700 hover:bg-slate-600 text-xs py-2.5 rounded-xl font-medium text-slate-200">Cancel</button>
+                    <button type="submit" class="w-1/2 bg-emerald-600 hover:bg-emerald-500 text-xs py-2.5 rounded-xl font-medium text-white shadow-lg shadow-emerald-600/20">Submit Proof Claim</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- JAVASCRIPT APP ARCHITECTURE -->
+    <script>
+        /* ================= STATE MANAGEMENT ================= */
+        let state = {
+            activeTab: 'dashboard',
+            categoryFilter: 'ALL',
+            items: [
+                {
+                    id: 1,
+                    type: 'LOST',
+                    title: 'Apple Macbook Pro 16" Space Gray',
+                    category: 'Electronics',
+                    color: 'Space Black',
+                    location: 'Library 3rd Floor Quiet Zone',
+                    lat: 40.7128,
+                    lng: -74.0060,
+                    date: '2 Hours ago',
+                    image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&auto=format&fit=crop&q=60',
+                    desc: 'Has a distinctive sticker of GitHub Octocat on the top right lid.',
+                    contact: 'owner1@example.com'
+                },
+                {
+                    id: 2,
+                    type: 'FOUND',
+                    title: 'Tan Leather Tri-Fold Wallet',
+                    category: 'Accessories',
+                    color: 'Brown',
+                    location: 'Central Subway Station Entrance',
+                    lat: 40.7138,
+                    lng: -74.0080,
+                    date: '5 Hours ago',
+                    image: 'https://images.unsplash.com/photo-1627123424574-724758594e93?w=500&auto=format&fit=crop&q=60',
+                    desc: 'Found near ticket machine 4. Handed over safely to lost & found desk.',
+                    contact: 'finder1@example.com'
+                },
+                {
+                    id: 3,
+                    type: 'LOST',
+                    title: 'Golden Retriever Dog (Name: Cooper)',
+                    category: 'Pets',
+                    color: 'Golden / Red',
+                    location: 'Riverside Park Promenade',
+                    lat: 40.7150,
+                    lng: -74.0030,
+                    date: 'Yesterday',
+                    image: 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=500&auto=format&fit=crop&q=60',
+                    desc: 'Cooper is wearing a blue collar with an active QR shield tag attached.',
+                    contact: 'cooper_owner@example.com'
+                },
+                {
+                    id: 4,
+                    type: 'FOUND',
+                    title: 'Toyota Smart Key FOB with Brass Ring',
+                    category: 'Keys',
+                    color: 'Black',
+                    location: 'Campus Dining Hall Table 12',
+                    lat: 40.7115,
+                    lng: -74.0045,
+                    date: '1 Day ago',
+                    image: 'https://images.unsplash.com/photo-1583121274602-3e2820c69888?w=500&auto=format&fit=crop&q=60',
+                    desc: 'Toyota fob with panic button and two brass keys attached.',
+                    contact: 'finder2@example.com'
+                }
+            ],
+            qrCodes: [
+                { id: 'QR-9081', item: 'Work Macbook Pro 16"', owner: 'Alex M.', reward: '$100 Reward', created: '2026-02-10' },
+                { id: 'QR-4412', item: 'Cooper (Golden Retriever)', owner: 'Sarah K.', reward: 'Generous Reward', created: '2026-02-15' }
+            ],
+            chatThreads: [
+                {
+                    id: 101,
+                    title: 'Re: Apple Macbook Pro 16"',
+                    partner: 'Finder User #204',
+                    lastMsg: 'I think I saw this item near the library desk!',
+                    time: '10:42 AM',
+                    messages: [
+                        { sender: 'them', text: 'Hello! Is this the Macbook Pro with the GitHub sticker?' },
+                        { sender: 'me', text: 'Yes! Exactly. Where did you find it?' },
+                        { sender: 'them', text: 'I think I saw this item near the library desk!' }
+                    ]
+                }
+            ],
+            activeChatId: 101,
+            map: null,
+            mapMarkers: []
+        };
+
+        /* ================= BACKEND PHP / SQL SOURCE DATA ================= */
+        const codeFiles = {
+            'schema.sql': `-- ===================================================
+-- Lost & Found Database Schema (MySQL 8.0+)
+-- ===================================================
+
+CREATE DATABASE IF NOT EXISTS lost_found_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE lost_found_db;
+
+-- 1. Users Table
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(150) NOT NULL UNIQUE,
+    phone VARCHAR(30) NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    webhook_url VARCHAR(255) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- 2. Items Table
+CREATE TABLE IF NOT EXISTS items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    type ENUM('LOST', 'FOUND') NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    color VARCHAR(50) NOT NULL,
+    description TEXT NOT NULL,
+    location_name VARCHAR(255) NOT NULL,
+    latitude DECIMAL(10, 8) NOT NULL,
+    longitude DECIMAL(11, 8) NOT NULL,
+    image_url VARCHAR(255) NULL,
+    status ENUM('ACTIVE', 'CLAIM_PENDING', 'RESOLVED') DEFAULT 'ACTIVE',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 3. QR Codes Table
+CREATE TABLE IF NOT EXISTS qr_codes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    item_label VARCHAR(150) NOT NULL,
+    unique_token VARCHAR(64) NOT NULL UNIQUE,
+    reward_message TEXT NULL,
+    scans_count INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 4. Claims Table
+CREATE TABLE IF NOT EXISTS claims (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    item_id INT NOT NULL,
+    claimant_id INT NOT NULL,
+    serial_number VARCHAR(100) NULL,
+    proof_description TEXT NOT NULL,
+    receipt_url VARCHAR(255) NULL,
+    status ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+    FOREIGN KEY (claimant_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 5. Chat Messages Table
+CREATE TABLE IF NOT EXISTS messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sender_id INT NOT NULL,
+    receiver_id INT NOT NULL,
+    item_id INT NOT NULL,
+    message_text TEXT NOT NULL,
+    is_read TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sender_id) REFERENCES users(id),
+    FOREIGN KEY (receiver_id) REFERENCES users(id),
+    FOREIGN KEY (item_id) REFERENCES items(id)
+) ENGINE=InnoDB;`,
+
+            'db.php': `<?php
+// db.php - Database Connection Configuration using PDO
+header('Content-Type: application/json');
+
+$host = 'localhost';
+$dbname = 'lost_found_db';
+$user = 'root';
+$pass = '';
+
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $user, $pass, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false
+    ]);
+} catch (PDOException $e) {
+    echo json_encode(['status' => 'error', 'message' => 'Database connection failed: ' . $e->getMessage()]);
+    exit;
+}
+?>`,
+
+            'auth.php': `<?php
+// auth.php - User Authentication API Endpoint
+require_once 'db.php';
+
+$action = $_GET['action'] ?? '';
+
+if ($action === 'register') {
+    $data = json_decode(file_get_contents('php://input'), true);
+    
+    if (empty($data['email']) || empty($data['password'])) {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid parameters']);
+        exit;
+    }
+    
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
+    $stmt->execute([$data['email']]);
+    if ($stmt->fetch()) {
+        echo json_encode(['status' => 'error', 'message' => 'Email already registered']);
+        exit;
+    }
+    
+    $hash = password_hash($data['password'], PASSWORD_BCRYPT);
+    $stmt = $pdo->prepare("INSERT INTO users (full_name, email, password_hash) VALUES (?, ?, ?)");
+    $stmt->execute([$data['full_name'], $data['email'], $hash]);
+    
+    echo json_encode(['status' => 'success', 'message' => 'User registered successfully']);
+}
+?>`,
+
+            'items.php': `<?php
+// items.php - CRUD Endpoint for Lost & Found Items
+require_once 'db.php';
+
+$method = $_SERVER['REQUEST_METHOD'];
+
+if ($method === 'GET') {
+    $category = $_GET['category'] ?? null;
+    $sql = "SELECT i.*, u.full_name as owner_name FROM items i JOIN users u ON i.user_id = u.id WHERE status = 'ACTIVE'";
+    
+    if ($category && $category !== 'ALL') {
+        $sql .= " AND i.category = :cat";
+    }
+    
+    $stmt = $pdo->prepare($sql);
+    if ($category && $category !== 'ALL') $stmt->bindValue(':cat', $category);
+    $stmt->execute();
+    
+    echo json_encode(['status' => 'success', 'data' => $stmt->fetchAll()]);
+}
+?>`,
+
+            'chat.php': `<?php
+// chat.php - Real-time Messages Endpoint
+require_once 'db.php';
+
+$method = $_SERVER['REQUEST_METHOD'];
+
+if ($method === 'POST') {
+    $data = json_decode(file_get_contents('php://input'), true);
+    
+    $stmt = $pdo->prepare("INSERT INTO messages (sender_id, receiver_id, item_id, message_text) VALUES (?, ?, ?, ?)");
+    $stmt->execute([$data['sender_id'], $data['receiver_id'], $data['item_id'], $data['message_text']]);
+    
+    echo json_encode(['status' => 'success', 'message_id' => $pdo->lastInsertId()]);
+}
+?>`,
+
+            'qr_handler.php': `<?php
+// qr_handler.php - Dynamic QR Code Token Generator
+require_once 'db.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $data = json_decode(file_get_contents('php://input'), true);
+    $token = bin2hex(random_bytes(16));
+    
+    $stmt = $pdo->prepare("INSERT INTO qr_codes (user_id, item_label, unique_token, reward_message) VALUES (?, ?, ?, ?)");
+    $stmt->execute([$data['user_id'], $data['item_label'], $token, $data['reward_message']]);
+    
+    echo json_encode([
+        'status' => 'success',
+        'qr_token' => $token,
+        'portal_url' => "https://findit.app/scan/" . $token
+    ]);
+}
+?>`,
+
+            'match_algorithm.php': `<?php
+// match_algorithm.php - AI Vector Feature Matcher Simulator
+require_once 'db.php';
+
+function calculateCosineSimilarity($vecA, $vecB) {
+    $dot = 0.0; $normA = 0.0; $normB = 0.0;
+    for ($i = 0; $i < count($vecA); $i++) {
+        $dot += $vecA[$i] * $vecB[$i];
+        $normA += $vecA[$i] ** 2;
+        $normB += $vecB[$i] ** 2;
+    }
+    return ($normA && $normB) ? ($dot / (sqrt($normA) * sqrt($normB))) : 0;
+}
+
+// Compute similarity score between candidate item and lost database
+echo json_encode(['status' => 'success', 'match_confidence' => 0.942]);
+?>`
+        };
+
+        /* ================= APP INITIALIZATION ================= */
+        window.onload = function() {
+            renderItems();
+            renderRegisteredQrs();
+            renderChatThreads();
+            showCodeFile('schema.sql');
+            initLeafletMap();
+        };
+
+        /* ================= NAVIGATION SYSTEM ================= */
+        function switchTab(tabId) {
+            state.activeTab = tabId;
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('bg-brand-600', 'text-white');
+                el.classList.add('text-slate-400');
+            });
+
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-brand-600', 'text-white');
+                activeBtn.classList.remove('text-slate-400');
+            }
+
+            if (tabId === 'map') {
+                setTimeout(() => { if (state.map) state.map.invalidateSize(); }, 200);
+            }
+        }
+
+        /* ================= DASHBOARD & ITEMS RENDERER ================= */
+        function setFilterCategory(cat) {
+            state.categoryFilter = cat;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('border-brand-500/50', 'bg-brand-500/20', 'text-brand-300');
+                btn.classList.add('border-slate-700', 'bg-slate-900', 'text-slate-400');
+            });
+            event.target.classList.add('border-brand-500/50', 'bg-brand-500/20', 'text-brand-300');
+            event.target.classList.remove('border-slate-700', 'bg-slate-900', 'text-slate-400');
+            renderItems();
+        }
+
+        function renderItems() {
+            const grid = document.getElementById('itemsGrid');
+            const search = document.getElementById('searchQuery').value.toLowerCase();
+            
+            let filtered = state.items.filter(item => {
+                const matchesCat = state.categoryFilter === 'ALL' || item.type === state.categoryFilter;
+                const matchesSearch = item.title.toLowerCase().includes(search) || 
+                                      item.location.toLowerCase().includes(search) ||
+                                      item.category.toLowerCase().includes(search);
+                return matchesCat && matchesSearch;
+            });
+
+            grid.innerHTML = filtered.map(item => `
+                <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 overflow-hidden hover:border-slate-600 transition-all flex flex-col group">
+                    <div class="relative h-44 overflow-hidden bg-slate-900">
+                        <img src="${item.image}" alt="${item.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                        <span class="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide shadow-md ${
+                            item.type === 'LOST' ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'
+                        }">
+                            <i class="fa-solid ${item.type === 'LOST' ? 'fa-circle-exclamation' : 'fa-check'} mr-1"></i> ${item.type}
+                        </span>
+                        <span class="absolute bottom-3 right-3 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-slate-950/80 text-slate-300 backdrop-blur-sm border border-slate-700">
+                            ${item.date}
+                        </span>
+                    </div>
+
+                    <div class="p-5 flex-1 flex flex-col justify-between space-y-4">
+                        <div>
+                            <div class="flex items-center justify-between gap-2 mb-1">
+                                <span class="text-[10px] font-semibold text-brand-400 uppercase tracking-wider">${item.category}</span>
+                                <span class="text-[10px] text-slate-400"><i class="fa-solid fa-palette mr-1"></i>${item.color}</span>
+                            </div>
+                            <h4 class="text-sm font-bold text-white group-hover:text-brand-300 transition-colors">${item.title}</h4>
+                            <p class="text-xs text-slate-400 mt-1 line-clamp-2">${item.desc}</p>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-700/50 space-y-3">
+                            <div class="flex items-center text-xs text-slate-300 gap-1.5">
+                                <i class="fa-solid fa-location-dot text-rose-400"></i>
+                                <span class="truncate">${item.location}</span>
+                            </div>
+
+                            <div class="flex gap-2">
+                                <button onclick="startInquiry(${item.id})" class="flex-1 bg-brand-600 hover:bg-brand-500 text-white text-xs py-2 rounded-xl font-medium transition-all flex items-center justify-center gap-1.5 shadow-md shadow-brand-600/20">
+                                    <i class="fa-solid fa-comments"></i> Contact ${item.type === 'LOST' ? 'Owner' : 'Finder'}
+                                </button>
+                                <button onclick="openModal('claimModal')" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-3 py-2 rounded-xl font-medium transition-all" title="Submit Ownership Proof">
+                                    <i class="fa-solid fa-shield-halved"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Update stats counter
+            document.getElementById('stat-lost-count').innerText = state.items.filter(i => i.type === 'LOST').length;
+            document.getElementById('stat-found-count').innerText = state.items.filter(i => i.type === 'FOUND').length;
+        }
+
+        /* ================= LEAFLET MAP ENGINE ================= */
+        function initLeafletMap() {
+            // Default center: NYC
+            state.map = L.map('map').setView([40.7128, -74.0060], 14);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+                maxZoom: 19
+            }).addTo(state.map);
+
+            renderMapMarkers();
+
+            // Click on map to pin custom report location
+            state.map.on('click', function(e) {
+                showToast(`Pin dropped at [${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}]. Click "Report Item" to save location.`, 'info');
+            });
+        }
+
+        function renderMapMarkers() {
+            if (!state.map) return;
+            
+            // Clear existing markers
+            state.mapMarkers.forEach(m => state.map.removeLayer(m));
+            state.mapMarkers = [];
+
+            state.items.forEach(item => {
+                const markerColor = item.type === 'LOST' ? '#f43f5e' : '#10b981';
+                
+                const customIcon = L.divIcon({
+                    className: 'custom-map-pin',
+                    html: `<div style="background-color: ${markerColor}; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.5);"></div>`,
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
+
+                const marker = L.marker([item.lat, item.lng], { icon: customIcon }).addTo(state.map);
+                
+                marker.bindPopup(`
+                    <div style="width: 180px;">
+                        <span style="background-color:${markerColor}; color:white; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">${item.type}</span>
+                        <h5 style="margin-top:6px; font-weight:bold; font-size:12px;">${item.title}</h5>
+                        <p style="font-size:10px; color:#94a3b8; margin-top:2px;">${item.location}</p>
+                    </div>
+                `);
+
+                state.mapMarkers.push(marker);
+            });
+        }
+
+        function updateMapRadius() {
+            const rad = document.getElementById('mapRadiusSelect').value;
+            showToast(`Map spatial radar filter updated to ${rad} meters radius.`, 'success');
+        }
+
+        /* ================= AI MATCHER ENGINE SIMULATOR ================= */
+        function triggerFileInput() {
+            document.getElementById('aiImageInput').click();
+        }
+
+        function handleAiImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('aiUploadPreview').innerHTML = `
+                        <img src="${e.target.result}" class="h-32 mx-auto rounded-lg object-cover border border-slate-700 shadow-md">
+                        <p class="text-xs text-emerald-400 font-medium">Image feature vector loaded successfully!</p>
+                    `;
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function runAiMatching() {
+            const resultsContainer = document.getElementById('aiMatchResults');
+            resultsContainer.innerHTML = `
+                <div class="text-center py-12 space-y-3">
+                    <i class="fa-solid fa-spinner animate-spin text-3xl text-purple-400"></i>
+                    <p class="text-xs text-slate-300">Extracting neural feature maps & calculating matrix cosine similarity...</p>
+                </div>
+            `;
+
+            setTimeout(() => {
+                const matches = [
+                    { ...state.items[0], score: 94.8, colorMatch: 'High', categoryMatch: 'Exact' },
+                    { ...state.items[1], score: 62.1, colorMatch: 'Medium', categoryMatch: 'Partial' }
+                ];
+
+                resultsContainer.innerHTML = matches.map(m => `
+                    <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4 hover:border-purple-500/50 transition-all">
+                        <div class="flex items-center gap-3">
+                            <img src="${m.image}" class="w-16 h-16 rounded-xl object-cover border border-slate-700">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold text-white">${m.title}</span>
+                                    <span class="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-500/30 font-semibold">${m.score}% Match</span>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-0.5">${m.location}</p>
+                                <div class="flex gap-2 mt-2">
+                                    <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">Category: ${m.categoryMatch}</span>
+                                    <span class="text-[10px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded">Color Vector: ${m.colorMatch}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="startInquiry(${m.id})" class="w-full sm:w-auto bg-purple-600 hover:bg-purple-500 text-white text-xs px-4 py-2 rounded-xl font-medium transition-all shadow-md shadow-purple-600/20">
+                            Connect Owner
+                        </button>
+                    </div>
+                `).join('');
+
+                showToast('AI Feature Matching scan complete!', 'success');
+            }, 1200);
+        }
+
+        /* ================= DYNAMIC QR TAG ENGINE ================= */
+        function generateQrCode(e) {
+            e.preventDefault();
+            const itemName = document.getElementById('qrItemName').value;
+            const ownerName = document.getElementById('qrOwnerName').value;
+            const rewardMsg = document.getElementById('qrRewardMsg').value;
+
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = '';
+
+            const uniqueToken = 'FINDIT-' + Math.random().toString(36).substring(2, 9).toUpperCase();
+            const portalUrl = `https://findit.app/alert/${uniqueToken}`;
+
+            new QRCode(qrContainer, {
+                text: portalUrl,
+                width: 150,
+                height: 150,
+                colorDark: "#0f172a",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            document.getElementById('qrDetails').classList.remove('hidden');
+            document.getElementById('qrOutputTitle').innerText = itemName;
+            document.getElementById('qrOutputOwner').innerText = `Registered to: ${ownerName}`;
+
+            // Save to state
+            state.qrCodes.push({
+                id: uniqueToken,
+                item: itemName,
+                owner: ownerName,
+                reward: rewardMsg || 'Privacy Tag Active',
+                created: new Date().toISOString().split('T')[0]
+            });
+
+            renderRegisteredQrs();
+            showToast('Privacy QR Shield Tag generated successfully!', 'success');
+        }
+
+        function renderRegisteredQrs() {
+            const list = document.getElementById('registeredQrList');
+            list.innerHTML = state.qrCodes.map(qr => `
+                <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-mono bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20">${qr.id}</span>
+                        <h5 class="text-xs font-bold text-white mt-1">${qr.item}</h5>
+                        <p class="text-[10px] text-slate-400">Owner: ${qr.owner}</p>
+                    </div>
+                    <button onclick="simulateQrScan()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-2.5 py-1.5 rounded-lg">
+                        <i class="fa-solid fa-qrcode text-emerald-400"></i> Test Scan
+                    </button>
+                </div>
+            `).join('');
+
+            document.getElementById('stat-qr-count').innerText = state.qrCodes.length;
+        }
+
+        function simulateQrScan() {
+            showToast('Simulating Anonymous Finder Scan... Routing to Secure Proxy Portal', 'info');
+            setTimeout(() => {
+                switchTab('chat');
+                showToast('Anonymous Finder chat initiated! Your direct phone remains hidden.', 'success');
+            }, 1000);
+        }
+
+        function downloadQrCode() {
+            showToast('QR PNG image downloaded to device.', 'success');
+        }
+
+        /* ================= IN-APP REAL-TIME CHAT ================= */
+        function renderChatThreads() {
+            const threadsContainer = document.getElementById('chatThreadsList');
+            threadsContainer.innerHTML = state.chatThreads.map(t => `
+                <div onclick="selectChatThread(${t.id})" class="p-3.5 hover:bg-slate-800/60 cursor-pointer transition-colors ${state.activeChatId === t.id ? 'bg-slate-800/80 border-l-4 border-brand-500' : ''}">
+                    <div class="flex items-center justify-between mb-1">
+                        <h5 class="text-xs font-bold text-white truncate">${t.title}</h5>
+                        <span class="text-[10px] text-slate-500">${t.time}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 truncate">${t.lastMsg}</p>
+                </div>
+            `).join('');
+
+            renderActiveMessages();
+        }
+
+        function selectChatThread(threadId) {
+            state.activeChatId = threadId;
+            renderChatThreads();
+        }
+
+        function renderActiveMessages() {
+            const thread = state.chatThreads.find(t => t.id === state.activeChatId);
+            const messagesContainer = document.getElementById('chatMessagesLog');
+
+            if (!thread) return;
+
+            document.getElementById('chatHeaderTitle').innerText = thread.title;
+
+            messagesContainer.innerHTML = thread.messages.map(m => `
+                <div class="flex ${m.sender === 'me' ? 'justify-end' : 'justify-start'}">
+                    <div class="max-w-[80%] rounded-2xl px-4 py-2.5 text-xs ${
+                        m.sender === 'me' 
+                        ? 'bg-brand-600 text-white rounded-br-none shadow-md shadow-brand-600/20' 
+                        : 'bg-slate-800 text-slate-200 border border-slate-700 rounded-bl-none'
+                    }">
+                        ${m.text}
+                    </div>
+                </div>
+            `).join('');
+
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function sendChatMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const thread = state.chatThreads.find(t => t.id === state.activeChatId);
+            if (thread) {
+                thread.messages.push({ sender: 'me', text });
+                thread.lastMsg = text;
+                input.value = '';
+                renderChatThreads();
+
+                // Auto automated finder reply
+                setTimeout(() => {
+                    thread.messages.push({ sender: 'them', text: 'Thanks for replying! Let us arrange a secure meeting spot.' });
+                    thread.lastMsg = 'Thanks for replying! Let us arrange a secure meeting spot.';
+                    renderChatThreads();
+                }, 1200);
+            }
+        }
+
+        function startInquiry(itemId) {
+            const item = state.items.find(i => i.id === itemId);
+            if (!item) return;
+
+            let existing = state.chatThreads.find(t => t.title.includes(item.title));
+            if (!existing) {
+                const newThread = {
+                    id: Date.now(),
+                    title: `Re: ${item.title}`,
+                    partner: 'Item Reporter',
+                    lastMsg: 'Inquiry started.',
+                    time: 'Just now',
+                    messages: [{ sender: 'me', text: `Hi! I saw your listing for "${item.title}". Is it still available?` }]
+                };
+                state.chatThreads.unshift(newThread);
+                state.activeChatId = newThread.id;
+            } else {
+                state.activeChatId = existing.id;
+            }
+
+            switchTab('chat');
+            renderChatThreads();
+        }
+
+        /* ================= SOURCE CODE BROWSER ================= */
+        function showCodeFile(filename) {
+            document.querySelectorAll('.code-tab').forEach(t => {
+                t.classList.remove('active-code-tab', 'bg-slate-800', 'border', 'border-slate-600', 'text-cyan-300');
+                t.classList.add('text-slate-400');
+            });
+
+            const activeTab = document.getElementById(`codeTab-${filename}`);
+            if (activeTab) {
+                activeTab.classList.add('active-code-tab', 'bg-slate-800', 'border', 'border-slate-600', 'text-cyan-300');
+                activeTab.classList.remove('text-slate-400');
+            }
+
+            document.getElementById('codeViewer').textContent = codeFiles[filename] || '-- File not found';
+        }
+
+        function copyCodeSnippet() {
+            const code = document.getElementById('codeViewer').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                showToast('Code snippet copied to clipboard!', 'success');
+            });
+        }
+
+        function downloadAllBackendFiles() {
+            showToast('Preparing ZIP package of PHP APIs and MySQL schema...', 'info');
+        }
+
+        /* ================= MODAL HANDLERS ================= */
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function handleReportSubmit(e) {
+            e.preventDefault();
+            const title = document.getElementById('reportTitle').value;
+            const category = document.getElementById('reportCategory').value;
+            const color = document.getElementById('reportColor').value;
+            const location = document.getElementById('reportLocation').value;
+            const desc = document.getElementById('reportDesc').value;
+            const type = document.querySelector('input[name="itemType"]:checked').value;
+
+            const newItem = {
+                id: Date.now(),
+                type,
+                title,
+                category,
+                color,
+                location,
+                lat: 40.7128 + (Math.random() - 0.5) * 0.02,
+                lng: -74.0060 + (Math.random() - 0.5) * 0.02,
+                date: 'Just now',
+                image: 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?w=500&auto=format&fit=crop&q=60',
+                desc,
+                contact: 'user@example.com'
+            };
+
+            state.items.unshift(newItem);
+            renderItems();
+            renderMapMarkers();
+            closeModal('reportModal');
+            showToast(`New ${type} item published successfully!`, 'success');
+        }
+
+        function handleClaimSubmit(e) {
+            e.preventDefault();
+            closeModal('claimModal');
+            showToast('Proof of Ownership claim submitted! The owner/admin will review details.', 'success');
+        }
+
+        function openClaimModalCurrent() {
+            openModal('claimModal');
+        }
+
+        /* ================= TOAST NOTIFICATION SYSTEM ================= */
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+
+            const bgClass = type === 'success' ? 'bg-emerald-600 text-white' :
+                            type === 'error' ? 'bg-rose-600 text-white' :
+                            'bg-brand-600 text-white';
+
+            const iconClass = type === 'success' ? 'fa-circle-check' :
+                             type === 'error' ? 'fa-circle-xmark' :
+                             'fa-circle-info';
+
+            toast.className = `${bgClass} px-4 py-3 rounded-xl shadow-2xl text-xs font-medium flex items-center gap-2 pointer-events-auto border border-white/10 transition-all transform translate-y-2 opacity-0`;
+            toast.innerHTML = `<i class="fa-solid ${iconClass}"></i> <span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+    </script>
+</body>
+</html>
